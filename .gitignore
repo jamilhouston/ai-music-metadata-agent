@@ -1,0 +1,27 @@
+# Secrets
+.env
+.env.*
+*.pem
+*.key
+
+# Private and generated data
+data/
+uploads/
+exports/
+outputs/
+work/
+
+# Python and test artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+
+# Editors and operating systems
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
