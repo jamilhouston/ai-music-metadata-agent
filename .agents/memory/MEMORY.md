@@ -1,0 +1,1 @@
+- [Streamlit UI testing](streamlit-ui-testing.md) — AppTest fixtures must use a project-root script path and clear access-gate environment variables.

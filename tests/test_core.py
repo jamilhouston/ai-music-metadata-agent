@@ -1,3 +1,7 @@
+from pathlib import Path
+
+from streamlit.testing.v1 import AppTest
+
 from music_metadata.exporters import flatten_record, to_csv, to_docx, to_pdf, to_text, to_xlsx
 from music_metadata.models import CatalogRecord, TechnicalMetadata, TrackMetadata
 from music_metadata.presentation import analysis_source_label, confidence_text, suggestion_groups
@@ -73,3 +77,34 @@ def test_link_only_results_are_explicitly_labeled():
     )
 
     assert analysis_source_label(record) == "Link-based metadata estimate — audio was not analyzed."
+
+
+def test_exports_unlock_after_human_approval(monkeypatch):
+    monkeypatch.delenv("APP_ACCESS_CODE", raising=False)
+    monkeypatch.delenv("REPLIT_DEPLOYMENT", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+    record = CatalogRecord(
+        metadata=TrackMetadata(track_title="Fixture"),
+        technical=TechnicalMetadata(),
+        review_status="Draft",
+    )
+    app = AppTest.from_file(Path(__file__).parents[1] / "app.py")
+    app.session_state.record = record
+
+    app.run(timeout=30)
+
+    assert app.checkbox(key="approve_metadata").value is False
+    assert len(app.download_button) == 0
+    assert any("Exports unlock after human review and approval." in info.value for info in app.info)
+
+    app.checkbox(key="approve_metadata").set_value(True).run(timeout=30)
+
+    assert app.session_state.record.review_status == "Approved"
+    assert app.checkbox(key="approve_metadata").value is True
+    assert [button.label for button in app.download_button] == [
+        "Download Excel",
+        "For Google Sheets",
+        "Download PDF",
+        "Download document",
+    ]
