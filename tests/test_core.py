@@ -1,5 +1,6 @@
 from music_metadata.exporters import flatten_record, to_csv, to_docx, to_pdf, to_text, to_xlsx
 from music_metadata.models import CatalogRecord, TechnicalMetadata, TrackMetadata
+from music_metadata.presentation import analysis_source_label, confidence_text, suggestion_groups
 from music_metadata.storage import reserve_daily_analysis
 from music_metadata.taxonomy import clean_term, unique_terms
 
@@ -36,3 +37,39 @@ def test_daily_analysis_limit(tmp_path):
     assert reserve_daily_analysis(2, str(database)) == (True, 1)
     assert reserve_daily_analysis(2, str(database)) == (True, 2)
     assert reserve_daily_analysis(2, str(database)) == (False, 2)
+
+
+def test_ai_auto_tag_display_groups_and_confidence():
+    metadata = TrackMetadata(
+        genre_primary="Electronic",
+        genre_secondary=["House"],
+        mood_tags=["Energetic"],
+        instrumentation=["Synth"],
+        musical_attributes=["Driving"],
+        performance_style=["Polished"],
+        themes_narrative=["Nightlife"],
+        sync_usage=["Advertising"],
+        description="A bright, driving electronic track.",
+        explicit_content="No",
+        clean_version_available="Yes",
+        instrumental_available="Unknown",
+        confidence={"genre_primary": 0.9, "moods": 0.75},
+    )
+
+    groups = {group["label"]: group for group in suggestion_groups(metadata)}
+
+    assert groups["Primary genre"]["values"] == ["Electronic"]
+    assert groups["Musical attributes & energy"]["values"] == ["Driving"]
+    assert groups["Explicit-content assessment"]["values"] == ["No"]
+    assert confidence_text(metadata, "genre_primary") == "Confidence: 90%"
+    assert confidence_text(metadata, "mood_tags") == "Confidence: 75%"
+
+
+def test_link_only_results_are_explicitly_labeled():
+    record = CatalogRecord(
+        metadata=TrackMetadata(),
+        technical=TechnicalMetadata(),
+        source_url="https://open.spotify.com/track/example",
+    )
+
+    assert analysis_source_label(record) == "Link-based metadata estimate — audio was not analyzed."

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import hmac
+import html
 import tempfile
 from datetime import date
 from pathlib import Path
@@ -13,6 +14,7 @@ from music_metadata.audio import analyze_audio, make_audio_preview
 from music_metadata.exporters import to_csv, to_docx, to_pdf, to_text, to_xlsx
 from music_metadata.links import resolve_music_link
 from music_metadata.models import CatalogRecord, RightsMetadata, TechnicalMetadata
+from music_metadata.presentation import analysis_source_label, confidence_text, suggestion_groups
 from music_metadata.storage import reserve_daily_analysis
 from music_metadata.taxonomy import BASE_TAXONOMY, taxonomy_from_workbook
 
@@ -79,6 +81,10 @@ audio_file = st.file_uploader(
 )
 streaming_url = st.text_input("Spotify or Apple Music track link (optional)")
 known_context = st.text_area("Known context", placeholder="Track title, artist, intended use, lyric summary, or anything the agent should know")
+st.info(
+    "AI Auto-Tagger will suggest categories after analysis. You do not need to choose categories before you start; "
+    "review and correct the suggestions afterward."
+)
 
 with st.expander("Privacy and upload permission", expanded=True):
     st.write(
@@ -104,7 +110,7 @@ with right:
     release_status = st.text_input("Release status", placeholder="Unreleased, released, pending…")
 
 if st.button(
-    "Analyze metadata",
+    "Analyze & Auto-Tag",
     type="primary",
     disabled=not (audio_file or streaming_url) or (audio_file is not None and not upload_permission),
 ):
@@ -152,8 +158,9 @@ if st.button(
                 metadata = classify_metadata(observations, technical, link_metadata, known_context, taxonomy)
                 uploaded_stem = Path(audio_file.name).stem if audio_file else ""
                 metadata.track_title = title_override or metadata.track_title or link_metadata.get("title", "") or uploaded_stem
-                metadata.version_status = version_status or metadata.version_status
-                metadata.release_status = release_status or metadata.release_status
+                # These fields are user/verified-source facts, never AI inferences.
+                metadata.version_status = version_status
+                metadata.release_status = release_status
                 metadata.metadata_source = (["Uploaded audio"] if audio_file else []) + ([link_metadata.get("provider", "Streaming link")] if link_metadata else [])
                 record = CatalogRecord(
                     metadata=metadata,
@@ -175,36 +182,162 @@ if st.button(
 record = st.session_state.record
 if record:
     st.divider()
-    st.subheader("Review metadata")
     metadata = record.metadata
-    metadata.track_title = st.text_input("Title", metadata.track_title, key="review_title")
-    metadata.genre_primary = st.selectbox(
-        "Primary genre",
-        options=[""] + taxonomy.get("genre_families", []),
-        index=([""] + taxonomy.get("genre_families", [])).index(metadata.genre_primary) if metadata.genre_primary in taxonomy.get("genre_families", []) else 0,
+    st.subheader("AI-Suggested Tags")
+    source_label = analysis_source_label(record)
+    if "Link-based" in source_label:
+        st.warning(source_label)
+    else:
+        st.success(source_label)
+    st.caption(
+        "These are AI suggestions from the selected taxonomy. Read the confidence levels and uncertainty notes "
+        "before approving anything for export."
     )
-    metadata.genre_secondary = st.multiselect("Secondary genres", taxonomy.get("subgenres", []), default=[v for v in metadata.genre_secondary if v in taxonomy.get("subgenres", [])])
-    metadata.mood_tags = st.multiselect("Mood tags", taxonomy.get("moods", []), default=[v for v in metadata.mood_tags if v in taxonomy.get("moods", [])])
-    metadata.sync_usage = st.multiselect("Sync uses", taxonomy.get("sync_uses", []), default=[v for v in metadata.sync_usage if v in taxonomy.get("sync_uses", [])])
-    metadata.instrumentation = st.text_input("Instrumentation (comma-separated)", ", ".join(metadata.instrumentation)).split(",")
-    metadata.instrumentation = [value.strip() for value in metadata.instrumentation if value.strip()]
-    metadata.themes_narrative = [value.strip() for value in st.text_input("Themes (comma-separated)", ", ".join(metadata.themes_narrative)).split(",") if value.strip()]
-    metadata.description = st.text_area("Description", metadata.description)
-    st.json({"technical": record.technical.model_dump(), "confidence": metadata.confidence, "uncertainty_notes": metadata.uncertainty_notes})
 
-    approve = st.checkbox("I reviewed these fields and approve this metadata")
+    for group in suggestion_groups(metadata):
+        field = group["field"]
+        values = group["values"]
+        with st.container(border=True):
+            st.markdown(f"**{group['label']}**")
+            if field == "description":
+                st.write(values[0] if values and values[0] else "No suggestion")
+            elif values:
+                chips = " ".join(
+                    f'<span style="display:inline-block;padding:.25rem .6rem;margin:.15rem .2rem .15rem 0;'
+                    f'border:1px solid #d7dbe2;border-radius:999px;background:#f5f7fa;">'
+                    f"{html.escape(str(value))}</span>"
+                    for value in values
+                )
+                st.markdown(chips, unsafe_allow_html=True)
+            else:
+                st.caption("No suggestion")
+            st.caption(confidence_text(metadata, group["confidence_key"]))
+
+    if metadata.uncertainty_notes:
+        st.warning("Uncertainty notes")
+        for note in metadata.uncertainty_notes:
+            st.markdown(f"- {note}")
+    else:
+        st.success("No uncertainty notes were returned.")
+
+    def options_with_current(values: list[str], current: list[str] | str) -> list[str]:
+        selected = [current] if isinstance(current, str) and current else list(current)
+        return list(dict.fromkeys([value for value in selected if value] + list(values)))
+
+    with st.expander("Edit suggestions"):
+        st.caption("Optional: correct any AI suggestion before requesting approval.")
+        metadata.track_title = st.text_input("Title", metadata.track_title, key="review_title")
+        genre_options = options_with_current(taxonomy.get("genre_families", []), metadata.genre_primary)
+        metadata.genre_primary = st.selectbox(
+            "Primary genre",
+            options=[""] + genre_options,
+            index=([""] + genre_options).index(metadata.genre_primary) if metadata.genre_primary in genre_options else 0,
+            key="edit_genre_primary",
+        )
+        metadata.genre_secondary = st.multiselect(
+            "Secondary genres",
+            options_with_current(taxonomy.get("subgenres", []), metadata.genre_secondary),
+            default=metadata.genre_secondary,
+            key="edit_genre_secondary",
+        )
+        metadata.mood_tags = st.multiselect(
+            "Mood",
+            options_with_current(taxonomy.get("moods", []), metadata.mood_tags),
+            default=metadata.mood_tags,
+            key="edit_mood_tags",
+        )
+        metadata.sync_usage = st.multiselect(
+            "Suggested sync uses",
+            options_with_current(taxonomy.get("sync_uses", []), metadata.sync_usage),
+            default=metadata.sync_usage,
+            key="edit_sync_usage",
+        )
+        metadata.instrumentation = [
+            value.strip()
+            for value in st.text_input(
+                "Instrumentation (comma-separated)",
+                ", ".join(metadata.instrumentation),
+                key="edit_instrumentation",
+            ).split(",")
+            if value.strip()
+        ]
+        metadata.musical_attributes = [
+            value.strip()
+            for value in st.text_input(
+                "Musical attributes & energy (comma-separated)",
+                ", ".join(metadata.musical_attributes),
+                key="edit_musical_attributes",
+            ).split(",")
+            if value.strip()
+        ]
+        metadata.performance_style = [
+            value.strip()
+            for value in st.text_input(
+                "Performance style (comma-separated)",
+                ", ".join(metadata.performance_style),
+                key="edit_performance_style",
+            ).split(",")
+            if value.strip()
+        ]
+        metadata.themes_narrative = [
+            value.strip()
+            for value in st.text_input(
+                "Themes or narrative (comma-separated)",
+                ", ".join(metadata.themes_narrative),
+                key="edit_themes_narrative",
+            ).split(",")
+            if value.strip()
+        ]
+        metadata.description = st.text_area("Description", metadata.description, key="edit_description")
+        metadata.explicit_content = st.selectbox(
+            "Explicit-content assessment",
+            ["Unknown", "Yes", "No"],
+            index=["Unknown", "Yes", "No"].index(metadata.explicit_content),
+            key="edit_explicit_content",
+        )
+        metadata.clean_version_available = st.selectbox(
+            "Clean-version assessment",
+            ["Unknown", "Yes", "No"],
+            index=["Unknown", "Yes", "No"].index(metadata.clean_version_available),
+            key="edit_clean_version",
+        )
+        metadata.instrumental_available = st.selectbox(
+            "Instrumental-version assessment",
+            ["Unknown", "Yes", "No"],
+            index=["Unknown", "Yes", "No"].index(metadata.instrumental_available),
+            key="edit_instrumental_version",
+        )
+        st.info(
+            "Ownership and rights fields are not inferred. Artist, writers, publishers, PRO, IPI, ISRC, UPC, "
+            "licensing rights, and release status must come from you or a verified source."
+        )
+        st.json({"technical": record.technical.model_dump(), "confidence": metadata.confidence})
+
+    approve = st.checkbox(
+        "I reviewed these fields and approve this metadata",
+        value=record.review_status == "Approved",
+        key="approve_metadata",
+    )
     if approve:
         record.review_status = "Approved"
         record.reviewed_at = date.today()
         st.success("Approved for export. Nothing was saved on the app server.")
+    else:
+        if record.review_status == "Approved":
+            record.review_status = "Needs review"
+            record.reviewed_at = None
+        st.warning("Review and approve the suggested tags before exporting.")
 
     st.subheader("Export")
-    text_export = to_text(record)
-    st.code(text_export, language=None)
-    st.caption("Use the copy button in the text box, or download a formatted file.")
-    col1, col2, col3, col4 = st.columns(4)
-    col1.download_button("Download Excel", to_xlsx(record), file_name="music-metadata.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    col2.download_button("For Google Sheets", to_csv(record), file_name="music-metadata-google-sheets.csv", mime="text/csv")
-    col3.download_button("Download PDF", to_pdf(record), file_name="music-metadata.pdf", mime="application/pdf")
-    col4.download_button("Download document", to_docx(record), file_name="music-metadata.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
-    st.caption("To use Google Sheets, download the Google Sheets CSV and import it into a sheet you control.")
+    if record.review_status == "Approved":
+        text_export = to_text(record)
+        st.code(text_export, language=None)
+        st.caption("Use the copy button in the text box, or download a formatted file.")
+        col1, col2, col3, col4 = st.columns(4)
+        col1.download_button("Download Excel", to_xlsx(record), file_name="music-metadata.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        col2.download_button("For Google Sheets", to_csv(record), file_name="music-metadata-google-sheets.csv", mime="text/csv")
+        col3.download_button("Download PDF", to_pdf(record), file_name="music-metadata.pdf", mime="application/pdf")
+        col4.download_button("Download document", to_docx(record), file_name="music-metadata.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+        st.caption("To use Google Sheets, download the Google Sheets CSV and import it into a sheet you control.")
+    else:
+        st.info("Exports unlock after human review and approval.")
