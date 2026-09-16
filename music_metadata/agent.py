@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import os
 
-from agents import Agent, ModelSettings, RunConfig, Runner
+from agents import Agent, AgentOutputSchema, ModelSettings, RunConfig, Runner
 from openai import OpenAI
 
 from .models import TechnicalMetadata, TrackMetadata
@@ -57,7 +57,7 @@ CONTROLLED VOCABULARY
         name="Music metadata classifier",
         instructions=instructions,
         model=model,
-        output_type=TrackMetadata,
+        output_type=AgentOutputSchema(TrackMetadata, strict_json_schema=False),
         model_settings=ModelSettings(store=False),
     )
     payload = {
