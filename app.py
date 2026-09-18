@@ -10,6 +10,7 @@ from pathlib import Path
 import streamlit as st
 
 from music_metadata.agent import classify_metadata, listen_to_audio
+from music_metadata.analytics import track_event
 from music_metadata.audio import analyze_audio, make_audio_preview
 from music_metadata.exporters import to_csv, to_docx, to_pdf, to_text, to_xlsx
 from music_metadata.links import resolve_music_link
@@ -114,6 +115,8 @@ if st.button(
     type="primary",
     disabled=not (audio_file or streaming_url) or (audio_file is not None and not upload_permission),
 ):
+    input_mode = "audio_and_link" if audio_file and streaming_url else "audio" if audio_file else "link_only"
+    track_event("analysis_started", {"input_mode": input_mode})
     if not os.getenv("OPENAI_API_KEY"):
         st.error("Add OPENAI_API_KEY to Replit Secrets or your local environment.")
     elif audio_file and audio_file.size > MAX_UPLOAD_MB * 1024 * 1024:
@@ -170,8 +173,22 @@ if st.button(
                     review_status="Needs review" if metadata.uncertainty_notes else "Draft",
                 )
                 st.session_state.record = record
+                track_event(
+                    "analysis_completed",
+                    {
+                        "input_mode": input_mode,
+                        "link_only": not bool(audio_file),
+                        "suggestion_count": sum(
+                            len(value) if isinstance(value, list) else bool(value)
+                            for value in metadata.model_dump().values()
+                            if isinstance(value, (list, str))
+                        ),
+                        "has_uncertainty": bool(metadata.uncertainty_notes),
+                    },
+                )
                 status.update(label="Draft metadata ready for review", state="complete")
         except Exception as exc:
+            track_event("analysis_failed", {"input_mode": input_mode, "failure_stage": "analysis"})
             st.error(f"Analysis failed: {exc}")
         finally:
             if audio_path:
@@ -313,6 +330,7 @@ if record:
         )
         st.json({"technical": record.technical.model_dump(), "confidence": metadata.confidence})
 
+    was_approved = record.review_status == "Approved"
     approve = st.checkbox(
         "I reviewed these fields and approve this metadata",
         value=record.review_status == "Approved",
@@ -321,6 +339,14 @@ if record:
     if approve:
         record.review_status = "Approved"
         record.reviewed_at = date.today()
+        if not was_approved:
+            track_event(
+                "metadata_approved",
+                {
+                    "link_only": not bool(record.technical.filename),
+                    "has_uncertainty": bool(metadata.uncertainty_notes),
+                },
+            )
         st.success("Approved for export. Nothing was saved on the app server.")
     else:
         if record.review_status == "Approved":
@@ -334,10 +360,14 @@ if record:
         st.code(text_export, language=None)
         st.caption("Use the copy button in the text box, or download a formatted file.")
         col1, col2, col3, col4 = st.columns(4)
-        col1.download_button("Download Excel", to_xlsx(record), file_name="music-metadata.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-        col2.download_button("For Google Sheets", to_csv(record), file_name="music-metadata-google-sheets.csv", mime="text/csv")
-        col3.download_button("Download PDF", to_pdf(record), file_name="music-metadata.pdf", mime="application/pdf")
-        col4.download_button("Download document", to_docx(record), file_name="music-metadata.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+        if col1.download_button("Download Excel", to_xlsx(record), file_name="music-metadata.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"):
+            track_event("export_downloaded", {"format": "xlsx"})
+        if col2.download_button("For Google Sheets", to_csv(record), file_name="music-metadata-google-sheets.csv", mime="text/csv"):
+            track_event("export_downloaded", {"format": "csv"})
+        if col3.download_button("Download PDF", to_pdf(record), file_name="music-metadata.pdf", mime="application/pdf"):
+            track_event("export_downloaded", {"format": "pdf"})
+        if col4.download_button("Download document", to_docx(record), file_name="music-metadata.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"):
+            track_event("export_downloaded", {"format": "docx"})
         st.caption("To use Google Sheets, download the Google Sheets CSV and import it into a sheet you control.")
     else:
         st.info("Exports unlock after human review and approval.")
