@@ -118,8 +118,10 @@ if st.button(
     input_mode = "audio_and_link" if audio_file and streaming_url else "audio" if audio_file else "link_only"
     track_event("analysis_started", {"input_mode": input_mode})
     if not os.getenv("OPENAI_API_KEY"):
+        track_event("analysis_failed", {"input_mode": input_mode, "failure_stage": "configuration"})
         st.error("Add OPENAI_API_KEY to Replit Secrets or your local environment.")
     elif audio_file and audio_file.size > MAX_UPLOAD_MB * 1024 * 1024:
+        track_event("analysis_failed", {"input_mode": input_mode, "failure_stage": "upload_limit"})
         st.error(f"That file is larger than the {MAX_UPLOAD_MB} MB limit.")
     else:
         audio_path = ""
@@ -178,11 +180,6 @@ if st.button(
                     {
                         "input_mode": input_mode,
                         "link_only": not bool(audio_file),
-                        "suggestion_count": sum(
-                            len(value) if isinstance(value, list) else bool(value)
-                            for value in metadata.model_dump().values()
-                            if isinstance(value, (list, str))
-                        ),
                         "has_uncertainty": bool(metadata.uncertainty_notes),
                     },
                 )

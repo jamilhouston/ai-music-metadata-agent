@@ -29,15 +29,20 @@ def track_event(name: str, data: Mapping[str, str | int | float | bool] | None =
     """Send a safe no-op-able event to Replit's injected Umami tracker."""
     if not _EVENT_NAME.fullmatch(name):
         return
-    components.html(
-        f"""
+    try:
+        components.html(
+            f"""
         <script>
         (() => {{
           try {{
-            window.parent?.umami?.track({_script_json(name)}, {_script_json(_safe_data(data))});
+            const result = window.parent?.umami?.track({_script_json(name)}, {_script_json(_safe_data(data))});
+            result?.catch?.(() => {{}});
           }} catch (_) {{}}
         }})();
         </script>
         """,
-        height=0,
-    )
+            height=0,
+        )
+    except Exception:
+        # Optional analytics must never interrupt analysis, review, or exports.
+        pass
