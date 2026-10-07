@@ -1,2 +1,2 @@
-- [Streamlit UI testing](streamlit-ui-testing.md) — AppTest fixtures must use a project-root script path and clear access-gate environment variables.
+- [Streamlit UI testing](streamlit-ui-testing.md) — AppTest fixtures must use a project-root script path.
 - [Post-merge Python setup](post-merge-python.md) — pip needs the PEP 668 override in the merge hook for this environment.

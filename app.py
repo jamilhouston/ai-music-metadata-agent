@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-import hmac
 import html
 import tempfile
 from datetime import date
@@ -28,34 +27,6 @@ MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "25"))
 MAX_TRACK_SECONDS = int(os.getenv("MAX_TRACK_SECONDS", "600"))
 DAILY_ANALYSIS_LIMIT = int(os.getenv("DAILY_ANALYSIS_LIMIT", "10"))
 
-
-def require_access() -> bool:
-    """Require a shared tester code in production; allow a restricted local preview."""
-    expected = os.getenv("APP_ACCESS_CODE", "")
-    if not expected:
-        if os.getenv("REPLIT_DEPLOYMENT"):
-            st.error("This deployment is waiting for its APP_ACCESS_CODE secret.")
-            st.stop()
-        st.warning("Developer preview: no access code is configured.")
-        return False
-    if st.session_state.get("authenticated"):
-        return True
-    st.subheader("Private preview")
-    st.write("Enter the tester access code to use this prototype.")
-    with st.form("access_form"):
-        entered = st.text_input("Access code", type="password")
-        submitted = st.form_submit_button("Continue")
-    if submitted:
-        if hmac.compare_digest(entered, expected):
-            st.session_state.authenticated = True
-            st.rerun()
-        else:
-            st.error("That access code is not correct.")
-    st.stop()
-    return False
-
-
-authenticated = require_access()
 
 if "record" not in st.session_state:
     st.session_state.record = None

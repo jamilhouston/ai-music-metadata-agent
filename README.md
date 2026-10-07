@@ -17,8 +17,7 @@ A Replit-ready Streamlit prototype for logging music metadata from uploaded audi
 
 1. Import this folder into a Replit Python App.
 2. Add `OPENAI_API_KEY` in Replit Secrets.
-3. Add `APP_ACCESS_CODE` in Replit Secrets. Choose a private code to give invited testers.
-4. Run the app. Replit uses the command in `.replit`.
+3. Run the app. Replit uses the command in `.replit`. The demo is open without a password.
 
 Optional settings:
 
@@ -30,7 +29,7 @@ Optional settings:
 
 ## Public-demo safeguards
 
-- A deployed app will not open until `APP_ACCESS_CODE` is configured.
+- The demo is open without an access code; anyone who reaches it shares the daily analysis allowance.
 - Audio uploaders must confirm they own the audio or have permission to process it.
 - Temporary audio and preview files are deleted after each analysis.
 - The demo does not create user accounts, request contact information, or save catalog records.

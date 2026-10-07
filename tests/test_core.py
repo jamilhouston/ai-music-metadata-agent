@@ -80,7 +80,6 @@ def test_link_only_results_are_explicitly_labeled():
 
 
 def test_exports_unlock_after_human_approval(monkeypatch):
-    monkeypatch.delenv("APP_ACCESS_CODE", raising=False)
     monkeypatch.delenv("REPLIT_DEPLOYMENT", raising=False)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
@@ -108,3 +107,14 @@ def test_exports_unlock_after_human_approval(monkeypatch):
         "Download PDF",
         "Download document",
     ]
+
+
+def test_public_demo_requires_no_password_in_deployment(monkeypatch):
+    monkeypatch.setenv("REPLIT_DEPLOYMENT", "1")
+    # A fixture proves even a leftover configured access code cannot enable a gate.
+    monkeypatch.setenv("APP_ACCESS_CODE", "unused-test-fixture")
+    app = AppTest.from_file(Path(__file__).parents[1] / "app.py").run(timeout=30)
+    assert not app.exception
+    assert any(button.label == "Analyze & Auto-Tag" for button in app.button)
+    assert not any(field.label == "Access code" for field in app.text_input)
+    assert any(expander.label == "Privacy and upload permission" for expander in app.expander)
