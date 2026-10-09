@@ -72,9 +72,9 @@ The bundled vocabulary follows the structure of the supplied Paradrift catalog: 
 
 - The current app has eleven automated test functions in its source. This is not a claim that every production pathway or model response was independently verified.
 - The source includes analytics events around analyses, approvals, and exports; production collection and hosting telemetry should be verified separately.
-- Git currently contains an older `zipFile.zip` import snapshot. The maintained application files, not that ZIP, should be treated as authoritative. Remove the outdated archive from the public-facing repository and review history before changing visibility.
+- The redundant `zipFile.zip` source archive was removed from the current branch; older commits still contain previous copies. The maintained source files in this repository are authoritative.
 - The app does not persist a full user catalog; the rate-limit counter is local SQLite and is not suitable for multi-instance enforcement.
-- Changing metadata after approval does not currently clear prior approval automatically; reviewers should recheck edits before exporting.
+- **Review limitation:** changing metadata after approval does not currently clear prior approval automatically, and approval can carry into a new analysis. Recheck every analysis and edit before exporting. This behavior should be corrected before broad public use.
 - The public Replit deployment may differ from the most recent source commit until republished.
 
 This is a portfolio artifact describing applied AI product thinking, not a claim of production-scale operation.
