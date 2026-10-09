@@ -12,7 +12,7 @@ Music cataloging requires repeated judgment about genre, mood, instrumentation, 
 
 **Stack:** Python 3.11, Streamlit, OpenAI Python/Agents SDKs, Pydantic, Librosa, Mutagen, NumPy, and export libraries.
 
-**Presentation:** a nine-slide case study covering the problem, workflow, privacy/security, debugging and deployment will be added to this repository as a PDF. The application source lives here now.
+**Presentation:** [View the nine-slide case study (PDF)](Music%20Metadata%20Agent.pdf), covering the problem, workflow, privacy and security, debugging, and deployment. The application source is included in this repository.
 
 **Current status:** functional portfolio demo. Not a production music-rights database, authoritative music classifier, or fully validated public SaaS offering.
 
