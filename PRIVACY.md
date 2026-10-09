@@ -8,13 +8,13 @@ This portfolio prototype is designed around data minimization. It demonstrates a
 
 - No consumer account, name, email address, phone number, or mailing address.
 - No user account or advertising profile is maintained by the application. The deployment includes Replit-injected Umami analytics instrumentation and custom events for analysis, approval and export activity. Exact browser tracking behavior, host logs, identifiers and retention require separate verification with the hosting provider.
-- No permanent copy of uploaded audio.
+- The application is designed not to retain a permanent copy of uploaded audio. Hosting logs, temporary storage failure cases, and third-party provider retention are separate considerations.
 - No permanent server-side copy of generated metadata.
 - No rights or ownership information inferred by AI.
 
 ## What is processed
 
-When a consumer uploads audio, the original file is temporarily available to the application for technical analysis. The application creates a short mono preview and sends that preview, any context the consumer entered, technical measurements, and relevant streaming-link metadata to the OpenAI API for metadata suggestions. Temporary audio files are deleted after the analysis attempt, including when an error occurs.
+When a consumer uploads audio, the original file is temporarily available to the application for technical analysis. The application creates a short mono preview and sends that preview, any context the consumer entered, technical measurements, and relevant streaming-link metadata to the OpenAI API for metadata suggestions. The application attempts to delete temporary audio and preview files after processing. An error occurring *during preview creation* can leave an intermediate file; deletion is not guaranteed on every error path. Do not upload sensitive or irreplaceable recordings until this is fixed and independently tested.
 
 Spotify and Apple Music links are sent to the applicable provider's public metadata endpoint. Direct Google account sharing is not used. Consumers can download a CSV and import it into a Google Sheet they control.
 
@@ -34,11 +34,11 @@ Reference: https://developers.openai.com/api/docs/guides/your-data
 
 - The current deployed demo is available without a shared access code; visitors share the daily analysis allowance. Authentication and user-specific quotas are not implemented.
 - The OpenAI key remains in the host's encrypted secret store and is never delivered to a browser or committed to source control.
-- The deployment checklist requires a project-specific, restricted, expiring API key.
+- A project-specific, restricted, rotated API key is recommended. Key scoping, expiration and host configuration have not been independently audited.
 - Audio uploads are restricted by file type, size, and duration.
 - Consumers must confirm that they own or have permission to process uploaded audio.
 - The demo has a daily analysis ceiling.
-- AI-generated metadata must be reviewed before it is treated as approved.
+- The app initially requires approval before export. This control is incomplete: approval is not currently invalidated automatically after metadata edits or a new analysis. Users should explicitly re-review each result before exporting.
 - Exceptions are handled without intentionally displaying API keys or credentials.
 
 ## Honest limitations
