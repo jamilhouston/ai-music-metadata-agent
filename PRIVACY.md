@@ -1,13 +1,13 @@
 # Privacy and Security Notes
 
-Last updated: September 15, 2026
+Last reviewed: October 9, 2026
 
 This portfolio prototype is designed around data minimization. It demonstrates a useful AI workflow without building a consumer database.
 
 ## Information the demo does not collect
 
 - No consumer account, name, email address, phone number, or mailing address.
-- No advertising profile, analytics profile, cookie-based tracking, or IP-address log created by the application.
+- No user account or advertising profile is maintained by the application. The deployment includes Replit-injected Umami analytics instrumentation and custom events for analysis, approval and export activity. Exact browser tracking behavior, host logs, identifiers and retention require separate verification with the hosting provider.
 - No permanent copy of uploaded audio.
 - No permanent server-side copy of generated metadata.
 - No rights or ownership information inferred by AI.
@@ -20,9 +20,9 @@ Spotify and Apple Music links are sent to the applicable provider's public metad
 
 Exports are generated in memory and downloaded only at the consumer's request. The application keeps the current result in temporary session memory so it can be reviewed and exported; it is not written to the catalog database.
 
-## Minimal operational record
+## Operational usage measurement
 
-The demo maintains one aggregate counter containing only the date and total number of analyses performed that day. It does not contain a consumer identifier, IP address, audio filename, streaming link, or metadata. The counter exists only to limit API spending and abuse.
+The demo maintains one aggregate counter containing only the date and total number of analyses performed that day. It does not contain a consumer identifier, IP address, audio filename, streaming link, or metadata. The counter exists only to limit API spending and abuse. It is separate from the deployment's analytics instrumentation and any technical logging performed by the host.
 
 ## OpenAI processing
 
@@ -32,7 +32,7 @@ Reference: https://developers.openai.com/api/docs/guides/your-data
 
 ## Security controls
 
-- The deployed demo requires a server-side access code.
+- The current deployed demo is available without a shared access code; visitors share the daily analysis allowance. Authentication and user-specific quotas are not implemented.
 - The OpenAI key remains in the host's encrypted secret store and is never delivered to a browser or committed to source control.
 - The deployment checklist requires a project-specific, restricted, expiring API key.
 - Audio uploads are restricted by file type, size, and duration.
@@ -43,4 +43,4 @@ Reference: https://developers.openai.com/api/docs/guides/your-data
 
 ## Honest limitations
 
-This is a portfolio demonstration, not a compliance certification or a substitute for legal advice. Hosting providers and third-party API providers may maintain their own security and operational logs under their respective policies. A shared access code is suitable for invited testing but should be replaced by individual authentication, managed rate limiting, monitoring, and a formal privacy review before broad commercial use.
+This is a portfolio demonstration, not a compliance certification or a substitute for legal advice. Hosting providers and third-party API providers may maintain their own security and operational logs under their respective policies. The password-free portfolio demo should not be treated as a substitute for individual authentication, managed rate limiting, verified analytics/privacy disclosures, monitoring, and a formal privacy review before broad commercial use.
