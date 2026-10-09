@@ -25,3 +25,16 @@ venv/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Streamlit secrets and local Python installs
+.streamlit/secrets.toml
+.streamlit/secrets.*
+!.streamlit/config.toml
+.pythonlibs/
+.pythonlibs/**
+*.sqlite
+*.sqlite3
+*.db
+
+# Portfolio import archives (do not recommit old source snapshots)
+zipFile.zip
