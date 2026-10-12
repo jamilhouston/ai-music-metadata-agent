@@ -1,80 +1,66 @@
 # AI Music Metadata Agent
 
-**Creative technology · AI-assisted music cataloging · Human-in-the-loop review**
+**Creative technology · Applied generative AI · Human-reviewed music cataloging**
 
-[Try the Replit demo](https://music-metadata-agent--jamilhouston.replit.app) · [Portfolio and other work](https://jamilhouston.com/labs)
+[Live Replit demo](https://music-metadata-agent--jamilhouston.replit.app) · [Presentation (PDF)](Music%20Metadata%20Agent.pdf) · [Privacy and security notes](PRIVACY.md) · [Portfolio](https://jamilhouston.com/labs)
 
-## Project overview
+## The problem
 
-Music cataloging requires repeated judgment about genre, mood, instrumentation, energy, tempo, and potential sync use. This personal portfolio prototype helps transform a track into a **reviewable first draft** of descriptive metadata rather than making final editorial or rights decisions automatically.
+Music creators and catalog owners repeatedly describe tracks using genre, mood, instruments, tempo, themes, and potential sync uses. Manual tagging takes time, and descriptions can vary between collaborators and catalogs.
 
-**My contribution:** scoped the product workflow; built and iterated the prototype using Replit and AI-assisted development; diagnosed structured-output compatibility issues; configured the deployment; documented privacy and user-review guardrails.
+**Goal:** produce a consistent, editable *first draft* of metadata while keeping the human responsible for accuracy, context, and approval.
 
-**Stack:** Python 3.11, Streamlit, OpenAI Python/Agents SDKs, Pydantic, Librosa, Mutagen, NumPy, and export libraries.
+## How it works
 
-**Presentation:** [View the nine-slide case study (PDF)](Music%20Metadata%20Agent.pdf), covering the problem, workflow, privacy and security, debugging, and deployment. The application source is included in this repository.
+1. **Provide audio or a link.** Upload MP3, WAV, FLAC, M4A, AAC, or OGG, or supply a supported Spotify/Apple Music link.
+2. **Analyze.** Extract measurable audio properties and estimated BPM/key; an AI listening pass suggests descriptive attributes. A link-only submission is labeled accordingly and should not be mistaken for listening analysis.
+3. **Review.** Inspect and edit suggestions for genre, mood, instrumentation, energy, tempo, themes, and sync use.
+4. **Export.** Copy approved text or download Excel, PDF, Word, or Google Sheets-compatible CSV. Google Sheets is **not** directly connected.
 
-**Current status:** functional portfolio demo. Not a production music-rights database, authoritative music classifier, or fully validated public SaaS offering.
+The app does not infer ownership, rights identifiers, or clearance status.
 
+## Technology and implementation
 
-A Replit-ready Streamlit prototype for logging music metadata from uploaded audio. It combines deterministic audio analysis with an AI listening pass and controlled-vocabulary classification.
+- **Interface:** Python 3.11 and Streamlit.
+- **Audio analysis:** Librosa, NumPy, Mutagen, and SoundFile.
+- **AI and structured output:** OpenAI Python/Agents SDKs, Pydantic; configurable audio and metadata models.
+- **Integrations:** Spotify oEmbed / Apple music metadata lookup.
+- **Exports:** OpenPyXL, python-docx, ReportLab, and CSV.
+- **Operations:** Replit deployment, aggregate daily usage counting in local SQLite, and custom analytics events.
 
-## What it does
+**My role:** I identified the cataloging problem, defined the desired workflow and safeguards, developed and iterated the prototype with Replit and AI-assisted tooling, diagnosed a structured-output schema issue, tested the user journey, and prepared the presentation and deployment. This is a working portfolio prototype, not a certified commercial service.
 
-- Accepts MP3, WAV, FLAC, M4A, AAC, and OGG uploads.
-- Extracts technical properties and estimates BPM, key, and scale.
-- Uses GPT-Audio-1.5 to describe the track.
-- Uses GPT-5.6 Terra as the default metadata model for Pydantic-validated output structure; generated tags still require human accuracy review.
-- Accepts a Spotify or Apple Music track link as enrichment or as a link-only alternative input.
-- Requires human review before export.
-- Offers copyable text and downloadable Excel, PDF, Word, and Google Sheets-compatible CSV exports (not direct Google Sheets integration).
-- Accepts an exported copy of the category workbook to load its complete vocabulary.
+## Project evidence
 
-## Replit setup
+- [Nine-slide case study](Music%20Metadata%20Agent.pdf): opportunity, product flow, architecture, privacy and security decisions, schema debugging, deployment, and next steps.
+- [Automated tests](tests/): 11 tests passed in the October 2026 source audit. That result does not verify all live model calls or production behavior.
+- [Privacy documentation](PRIVACY.md): data flow, third-party processing, retention limitations, analytics, and known gaps.
 
-1. Import this folder into a Replit Python App.
-2. Add `OPENAI_API_KEY` in Replit Secrets.
-3. Run the app. Replit uses the command in `.replit`. The demo is open without a password.
+## Run your own development copy
 
-Optional settings:
+Install the dependencies in a Python/Replit environment using `requirements.txt`, set `OPENAI_API_KEY` as an environment secret (never commit its value), and run the Streamlit app through the project's `.replit` configuration or `streamlit run app.py`.
 
-- `OPENAI_METADATA_MODEL` defaults to `gpt-5.6-terra`.
-- `OPENAI_AUDIO_MODEL` defaults to `gpt-audio-1.5`.
-- `DAILY_ANALYSIS_LIMIT` defaults to `10` analyses per day across the demo instance.
-- `MAX_UPLOAD_MB` defaults to `25` MB.
-- `MAX_TRACK_SECONDS` defaults to `600` seconds (10 minutes).
+Selected settings:
 
-## Public-demo safeguards
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `OPENAI_METADATA_MODEL` | `gpt-5.6-terra` | Metadata generation model |
+| `OPENAI_AUDIO_MODEL` | `gpt-audio-1.5` | Audio interpretation model |
+| `DAILY_ANALYSIS_LIMIT` | `10` | Shared daily demo usage cap |
+| `MAX_UPLOAD_MB` | `25` | Upload size boundary |
+| `MAX_TRACK_SECONDS` | `600` | Track duration boundary |
 
-- The demo is open without an access code; anyone who reaches it shares the daily analysis allowance.
-- Audio uploaders must confirm they own the audio or have permission to process it.
-- Temporary audio and preview files are deleted after each analysis.
-- The demo does not create user accounts, request contact information, or save catalog records. Replit-injected analytics instrumentation may record aggregate usage events; see [PRIVACY.md](PRIVACY.md).
-- Model response storage is disabled, and OpenAI Agents SDK tracing is disabled.
-- Direct Google Sheets sharing was replaced with a downloadable CSV so the app never asks for a consumer email address.
-- The built-in daily counter is appropriate for a small demonstration. Use a managed rate limiter and database before supporting significant public traffic.
-- Keep all credentials in Replit Secrets. Never place them in this repository.
-
-Read [PRIVACY.md](PRIVACY.md) for the consumer-facing data flow, third-party processing disclosure, and security boundaries.
-
-## Taxonomy
-
-The bundled vocabulary follows the structure of the supplied Paradrift catalog: genre/subgenre, mood, style, instruments, tempo, references, and sync usage. Upload an `.xlsx` export of the category workbook in the sidebar to use the full current vocabulary without bundling private catalog and rights data into the application.
+Model availability and cost depend on your API account. For local development, run tests with `python -m pytest`. Optional category vocabulary can be loaded from a local `.xlsx` export; don't commit private catalog workbooks or recordings.
 
 ## Important limitations
 
-- BPM and key detection are estimates and require review.
-- Model-generated genre, mood, and sync tags are suggestions.
-- Rights and ownership identifiers are never inferred.
-- The SQLite usage counter stores only a calendar date and aggregate analysis count. It does not store names, IP addresses, audio, links, or metadata.
+- **Human approval has a known state bug:** approval does not always reset after edits or a new analysis. Users must re-review each result; this requires a code fix before broad public use.
+- **Temporary audio cleanup has an edge case:** an error during preview creation can leave an intermediate file. Do not upload sensitive recordings until the failure path is fixed and retested.
+- **Demo access is password-free.** The SQLite daily counter is local to an instance, not a robust global rate limiter.
+- Generated tags and estimated BPM/key require human validation. A valid JSON schema does not guarantee factually correct metadata.
+- Analytics instrumentation exists; its live delivery, host telemetry, and retention were not comprehensively verified. See [PRIVACY.md](PRIVACY.md).
+- Historical commits contain an original imported ZIP; maintained code is in the current source tree, not the archive.
 
-## Project evidence and limitations
+**Status:** research and portfolio demo. Use synthetic or appropriately licensed audio for demonstrations; this repository is not an authoritative catalog or rights-management system.
 
-- The current app has eleven automated test functions in its source. This is not a claim that every production pathway or model response was independently verified.
-- The source includes analytics events around analyses, approvals, and exports; production collection and hosting telemetry should be verified separately.
-- The redundant `zipFile.zip` source archive was removed from the current branch; older commits still contain previous copies. The maintained source files in this repository are authoritative.
-- The app does not persist a full user catalog; the rate-limit counter is local SQLite and is not suitable for multi-instance enforcement.
-- **Review limitation:** changing metadata after approval does not currently clear prior approval automatically, and approval can carry into a new analysis. Recheck every analysis and edit before exporting. This behavior should be corrected before broad public use.
-- The public Replit deployment may differ from the most recent source commit until republished.
-
-This is a portfolio artifact describing applied AI product thinking, not a claim of production-scale operation.
+**License:** [MIT](LICENSE), for the source under that license.
